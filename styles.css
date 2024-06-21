@@ -1,5 +1,12 @@
+@font-face {
+    font-family: 'CircularSP';
+    src: url('https://encore.scdn.co/fonts/CircularSpTitle-Black-4588c99025b967475c31695b0743dd1a.woff2') format('woff2');
+    font-weight: 900;
+    font-style: normal;
+}
+
 body {
-    font-family: 'Circular', 'Spotify Circular', Helvetica, Arial, sans-serif;
+    font-family: 'CircularSP', 'Circular', 'Spotify Circular', Helvetica, Arial, sans-serif;
     background-color: #191414;
     color: white;
     display: flex;
@@ -21,75 +28,107 @@ body {
     position: relative;
 }
 
-.auth-button {
+.login-button {
     position: absolute;
     top: 20px;
     right: 20px;
-    background-color: #1DB954;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    padding: 10px 20px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-}
-
-.auth-button svg {
-    margin-left: 5px;
-}
-
-input, textarea {
-    width: 100%;
-    padding: 10px;
-    margin: 10px 0;
-    border: none;
-    border-radius: 5px;
+    background-color: white;
     color: black;
-}
-
-button {
+    border: none;
+    border-radius: 50px;
     padding: 10px 20px;
     font-size: 16px;
     cursor: pointer;
-    border: none;
-    border-radius: 5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.fetch-button {
     background-color: #1DB954;
     color: white;
-    margin-top: 10px;
+    border: none;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.fetch-button::before {
+    content: '';
+    display: block;
+    width: 0;
+    height: 0;
+    border-left: 12px solid black;
+    border-top: 8px solid transparent;
+    border-bottom: 8px solid transparent;
+    position: absolute;
+}
+
+.create-playlist-button {
+    background-color: white;
+    color: black;
+    border: none;
+    border-radius: 50px;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    align-self: center; /* Center align */
+    margin-top: 60px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #333;
+    border-radius: 50px;
+    background-color: #333;
+    color: #fff;
+    padding-right: 20px; /* Added padding */
 }
 
 .section {
     margin-top: 20px;
 }
 
+.header-with-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.header-with-button h2 {
+    margin-right: 10px;
+}
+
 .code-box {
     position: relative;
     width: 100%;
+    background-color: #333;
+    border-radius: 5px;
 }
 
-.code-box textarea {
+textarea {
     width: 100%;
-    height: 150px;
     padding: 10px;
-    border: 1px solid #ccc;
+    margin: 10px 0;
+    border: none;
     border-radius: 5px;
-    background-color: #2d2d2d;
+    background-color: #333;
     color: white;
-    font-family: monospace;
     resize: none;
 }
 
-.copy-button {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background-color: #1DB954;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    padding: 5px 10px;
+.copy-button, .rounded-button {
+    border-radius: 50px;
 }
 
 .tabs {
@@ -101,14 +140,15 @@ button {
 .tab {
     padding: 10px 20px;
     cursor: pointer;
-    background-color: #1DB954;
+    background-color: #333;
     color: white;
     margin: 0 5px;
-    border-radius: 5px;
+    border-radius: 50px;
+    transition: background-color 0.3s ease;
 }
 
-.tab.active {
-    background-color: #1ED760;
+.tab.active, .tab:hover {
+    background-color: #1DB954;
 }
 
 .tab-content {
@@ -123,8 +163,9 @@ button {
 .flex-container {
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start;
     flex-wrap: wrap;
+    gap: 20px; /* Added gap */
 }
 
 .flex-item {
@@ -132,35 +173,96 @@ button {
     flex: 1;
 }
 
-.progress-bar-container {
-    width: 100%;
-    margin-top: 20px;
-}
-
-.progress-bar {
-    width: 100%;
-    background-color: #ddd;
-    height: 20px;
-    border-radius: 5px;
-    overflow: hidden;
-}
-
-.progress {
-    height: 100%;
-    width: 0;
+.notification {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
     background-color: #1DB954;
-    border-radius: 5px;
+    color: white;
     text-align: center;
-    line-height: 20px;
+    padding: 20px;
+    z-index: 1000;
+    transition: top 0.5s ease-in-out;
+}
+
+.notification.show {
+    display: block;
+    top: 0;
+}
+
+.notification.hide {
+    top: -100px;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1001;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+    background-color: #282828;
+    margin: 15% auto;
+    padding: 50px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 500px;
+    border-radius: 10px;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h1 {
+    margin: 0;
+    font-size: 24px;
+}
+
+.close-button {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
     color: white;
 }
 
-.progress-text {
-    text-align: center;
-    margin-top: 5px;
-    color: #1DB954;
+.save-button {
+    background-color: white;
+    color: black;
+    border: none;
+    border-radius: 50px;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.hidden {
-    display: none;
+.profile-picture {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.profile-picture img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
