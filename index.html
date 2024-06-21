@@ -8,13 +8,24 @@
 </head>
 <body>
     <div class="container">
-        <button class="login-button" onclick="authenticate()">Log in</button>
+        <div class="auth-buttons">
+            <button class="login-button" onclick="authenticate()">Log in</button>
+            <button class="logout-button hidden" onclick="logout()">Log out</button>
+        </div>
         <h1>Spotify Tools</h1>
         <div class="tabs">
-            <div class="tab active" onclick="showTab('story')">Story Generator</div>
+            <div class="tab active" onclick="showTab('similar')">Similar Playlist</div>
+            <div class="tab" onclick="showTab('story')">Spotify Story</div>
             <div class="tab" onclick="showTab('genre')">Playlist Genre Sorter</div>
         </div>
-        <div id="story" class="tab-content active">
+        <div id="similar" class="tab-content active">
+            <p>Enter a Spotify playlist URL to create a playlist of songs similar to those in the provided playlist.</p>
+            <form role="search">
+                <input class="search-input" id="similarPlaylistURL" maxlength="800" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Enter your playlist URL." data-testid="search-input">
+            </form>
+            <button class="create-playlist-similar-button" onclick="createSimilarPlaylist()">Create playlist</button>
+        </div>
+        <div id="story" class="tab-content">
             <p>Enter a Spotify playlist URL and generate a story or subliminal message from the song titles.</p>
             <form role="search">
                 <input class="search-input" id="storyPlaylistURL" maxlength="800" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Enter your playlist URL." data-testid="search-input">

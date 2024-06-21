@@ -1,112 +1,108 @@
-const clientId = 'f6e537a709ed4244a7da8a33c1cb24ad'; // Your Spotify Client ID
-const redirectUri = 'justinsoon.io/spotifytools'; // Ensure this matches the URI in Spotify Developer Dashboard
+const clientId = 'f6e537a709ed4244a7da8a33c1cb24ad';
+const redirectUri = 'justinsoon.io/spotifytools';
 const scopes = 'playlist-read-private playlist-read-collaborative playlist-modify-private playlist-modify-public';
-let accessToken = '';
-let fetchedSongs = [];
+let accessToken = '', fetchedSongs = [], similarSongs = [];
+
+const elements = {
+    storyPlaylistURL: document.getElementById('storyPlaylistURL'),
+    genrePlaylistURL: document.getElementById('genrePlaylistURL'),
+    similarPlaylistURL: document.getElementById('similarPlaylistURL'),
+    songList: document.getElementById('songList'),
+    storyOutput: document.getElementById('storyOutput'),
+    songPromptContainer: document.getElementById('songPromptContainer'),
+    notification: document.getElementById('notification')
+};
 
 function authenticate() {
     const authUrl = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}`;
     window.location = authUrl;
 }
 
+function logout() {
+    accessToken = '';
+    localStorage.removeItem('storyPlaylistURL');
+    localStorage.removeItem('genrePlaylistURL');
+    localStorage.removeItem('similarPlaylistURL');
+    elements.storyPlaylistURL.value = '';
+    elements.genrePlaylistURL.value = '';
+    elements.similarPlaylistURL.value = '';
+    document.querySelector('.profile-picture').replaceWith(createLoginButton());
+    document.querySelector('.logout-button').classList.add('hidden');
+    showNotification('Logged out successfully.');
+}
+
+function createLoginButton() {
+    const loginButton = document.createElement('button');
+    loginButton.className = 'login-button';
+    loginButton.textContent = 'Log in';
+    loginButton.onclick = authenticate;
+    return loginButton;
+}
+
 function showTab(tab) {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+    document.querySelectorAll('.tab, .tab-content').forEach(el => el.classList.remove('active'));
     document.querySelector(`.tab[onclick="showTab('${tab}')"]`).classList.add('active');
     document.getElementById(tab).classList.add('active');
 }
 
 function showNotification(message) {
-    const notification = document.getElementById('notification');
-    notification.textContent = message;
-    notification.classList.remove('hide');
-    notification.classList.add('show');
-
+    elements.notification.textContent = message;
+    elements.notification.classList.remove('hide');
+    elements.notification.classList.add('show');
     setTimeout(() => {
-        notification.classList.remove('show');
-        notification.classList.add('hide');
-    }, 8000); // 8 seconds
+        elements.notification.classList.remove('show');
+        elements.notification.classList.add('hide');
+    }, 8000);
 }
 
 function closeModal() {
-    const modal = document.getElementById('editPlaylistDetailsModal');
-    modal.style.display = 'none';
+    document.getElementById('editPlaylistDetailsModal').style.display = 'none';
 }
 
 function openModal() {
-    const modal = document.getElementById('editPlaylistDetailsModal');
-    modal.style.display = 'block';
+    document.getElementById('editPlaylistDetailsModal').style.display = 'block';
 }
 
-function savePlaylistDetails() {
+async function savePlaylistDetails() {
     const playlistName = document.getElementById('playlistNameInput').value;
     const playlistDescription = document.getElementById('playlistDescriptionInput').value;
     const songInput = document.getElementById('songInputModal').value;
-    const songTitles = songInput.split('|').map(title => title.trim());
+    const songTitles = songInput.split('|').map(title => title.trim().toLowerCase());
 
-    if (!playlistName) {
-        showNotification('Please enter a playlist name.');
-        return;
-    }
+    if (!playlistName) return showNotification('Please enter a playlist name.');
+    if (playlistDescription.length > 300) return showNotification('Playlist description exceeds 300 characters.');
+    if (!songTitles.length) return showNotification('Song list is empty.');
+    if (!accessToken) return showNotification('Please log in to your Spotify account.');
 
-    if (playlistDescription.length > 300) {
-        showNotification('Playlist description exceeds 300 characters.');
-        return;
-    }
+    const fetchedSongsMap = new Map(fetchedSongs.map(song => [song.title.toLowerCase(), song.uri]));
+    const matchedUris = songTitles.map(title => fetchedSongsMap.get(title)).filter(uri => uri);
 
-    if (!songTitles.length) {
-        showNotification('Song list is empty.');
-        return;
-    }
+    if (!matchedUris.length) return showNotification('No matching songs found.');
 
-    if (!accessToken) {
-        showNotification('Please log in to your Spotify account.');
-        return;
-    }
-
-    const unmatchedSongs = songTitles.filter(song => !fetchedSongs.some(fetchedSong => fetchedSong.title === song));
-    if (unmatchedSongs.length > 0) {
-        showNotification(`These songs are not part of the fetched playlist: ${unmatchedSongs.join(', ')}`);
-        return;
-    }
-
-    createSpotifyPlaylist(playlistName, playlistDescription, songTitles);
+    await createSpotifyPlaylist(playlistName, playlistDescription, matchedUris);
     closeModal();
+    showNotification('Playlist created successfully!');
 }
 
 function fetchStorySongs() {
-    const storyPlaylistURL = document.getElementById('storyPlaylistURL').value;
-    if (!storyPlaylistURL) {
-        showNotification('Please enter a valid Spotify playlist URL.');
-        return;
-    }
+    const storyPlaylistURL = elements.storyPlaylistURL.value;
+    if (!storyPlaylistURL) return showNotification('Please enter a valid Spotify playlist URL.');
     localStorage.setItem('storyPlaylistURL', storyPlaylistURL);
     fetchSongsFromURL(storyPlaylistURL);
 }
 
 async function fetchSongsFromURL(playlistURL) {
     const playlistId = extractPlaylistId(playlistURL);
-    if (!playlistId) {
-        showNotification('Invalid playlist URL.');
-        return;
-    }
+    if (!playlistId) return showNotification('Invalid playlist URL.');
 
     accessToken = getAccessTokenFromUrl();
-    if (!accessToken) {
-        showNotification('Please log in to your Spotify account.');
-        return;
-    }
+    if (!accessToken) return showNotification('Please log in to your Spotify account.');
 
     fetchedSongs = [];
-    let url = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=50`;
-    let data;
-
+    let url = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=50`, data;
     do {
         data = await fetchData(url);
-        if (!data.items) {
-            showNotification('Failed to fetch playlist.');
-            return;
-        }
+        if (!data.items) return showNotification('Failed to fetch playlist.');
         fetchedSongs.push(...data.items.map(item => ({
             title: item.track.name,
             uri: item.track.uri,
@@ -115,53 +111,29 @@ async function fetchSongsFromURL(playlistURL) {
         url = data.next;
     } while (data.next);
 
-    displaySongTitles(fetchedSongs.map(song => song.title));
-    generateStoryPrompt(fetchedSongs.map(song => song.title));
+    elements.songList.value = fetchedSongs.map(song => song.title).join('\n');
+    elements.storyOutput.value = `Make a story or subliminal message by only using these song titles. Re-organize, but do not remove any of the songs, to make the story captivating and fluent. Give the entire re-ordered outputted formatted songs titles separated by '|'. Give me a title and a 300 character limit description of the story. Make the song titles written in the description all capitalized. Make sure the description in its entirety is 300 characters, including the capitalized song title that might overflow the 300 character limit.\n\n ${songTitles.join('|')}`;
     checkVisibility();
 }
 
-function displaySongTitles(songTitles) {
-    document.getElementById('songList').value = songTitles.join('\n');
-}
-
-function generateStoryPrompt(songTitles) {
-    const prompt = `Make a story or subliminal message by only using these song titles. Re-organize, but do not remove any of the songs, to make the story captivating and fluent. Give the entire re-ordered outputted formatted songs titles separated by '|'. Give me a title and a 300 character limit description of the story. Make the song titles written in the description all capitalized. Make sure the description in its entirety is 300 characters, including the capitalized song title that might overflow the 300 character limit.\n\n ${songTitles.join('|')}`;
-    document.getElementById('storyOutput').value = prompt;
-}
-
 function fetchAndDisplayGenres() {
-    const genrePlaylistURL = document.getElementById('genrePlaylistURL').value;
-    if (!genrePlaylistURL) {
-        showNotification('Please enter a valid Spotify playlist URL.');
-        return;
-    }
+    const genrePlaylistURL = elements.genrePlaylistURL.value;
+    if (!genrePlaylistURL) return showNotification('Please enter a valid Spotify playlist URL.');
     localStorage.setItem('genrePlaylistURL', genrePlaylistURL);
     createGenrePlaylists(genrePlaylistURL);
 }
 
 async function createGenrePlaylists(playlistURL) {
     const playlistId = extractPlaylistId(playlistURL);
-    if (!playlistId) {
-        showNotification('Invalid playlist URL.');
-        return;
-    }
+    if (!playlistId) return showNotification('Invalid playlist URL.');
 
     accessToken = getAccessTokenFromUrl();
-    if (!accessToken) {
-        showNotification('Please log in to your Spotify account.');
-        return;
-    }
+    if (!accessToken) return showNotification('Please log in to your Spotify account.');
 
-    let genreSongs = [];
-    let url = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=50`;
-    let data;
-
+    let genreSongs = [], url = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=50`, data;
     do {
         data = await fetchData(url);
-        if (!data.items) {
-            showNotification('Failed to fetch playlist.');
-            return;
-        }
+        if (!data.items) return showNotification('Failed to fetch playlist.');
         genreSongs.push(...data.items.map(item => ({
             id: item.track.id,
             uri: item.track.uri,
@@ -182,6 +154,7 @@ async function fetchTrackGenresAndCreatePlaylists(tracks) {
 
         const trackData = await fetchData(`https://api.spotify.com/v1/tracks?ids=${ids}`);
         for (const track of trackData.tracks) {
+            if (!track) continue;
             for (const artist of track.artists) {
                 const artistData = await fetchData(`https://api.spotify.com/v1/artists/${artist.id}`);
                 if (artistData.genres && artistData.genres.length > 0) {
@@ -199,10 +172,7 @@ async function fetchTrackGenresAndCreatePlaylists(tracks) {
     }
 
     accessToken = getAccessTokenFromUrl();
-    if (!accessToken) {
-        showNotification('Access token is missing. Please authenticate.');
-        return;
-    }
+    if (!accessToken) return showNotification('Access token is missing. Please authenticate.');
 
     const userResponse = await fetchData('https://api.spotify.com/v1/me');
     const userId = userResponse.id;
@@ -243,16 +213,91 @@ async function fetchTrackGenresAndCreatePlaylists(tracks) {
     showNotification('Genre playlists created successfully!');
 }
 
+async function createSimilarPlaylist() {
+    const similarPlaylistURL = elements.similarPlaylistURL.value;
+    if (!similarPlaylistURL) return showNotification('Please enter a valid Spotify playlist URL.');
+    await fetchSimilarSongsFromURL(similarPlaylistURL);
+}
+
+async function fetchSimilarSongsFromURL(playlistURL) {
+    const playlistId = extractPlaylistId(playlistURL);
+    if (!playlistId) return showNotification('Invalid playlist URL.');
+
+    accessToken = getAccessTokenFromUrl();
+    if (!accessToken) return showNotification('Please log in to your Spotify account.');
+
+    fetchedSongs = [];
+    let url = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=50`, data;
+    do {
+        data = await fetchData(url);
+        if (!data.items) return showNotification('Failed to fetch playlist.');
+        fetchedSongs.push(...data.items.map(item => ({
+            title: item.track.name,
+            uri: item.track.uri,
+            id: item.track.id
+        })));
+        url = data.next;
+    } while (data.next);
+
+    similarSongs = await fetchSimilarTracks(fetchedSongs);
+    const originalPlaylistData = await fetchData(`https://api.spotify.com/v1/playlists/${playlistId}`);
+    const originalPlaylistName = originalPlaylistData.name;
+    const description = `A playlist with songs similar to those in the [original playlist](${playlistURL}).`;
+    const name = `Similar Playlist To ${originalPlaylistName}`;
+
+    await createSpotifyPlaylist(name, description, similarSongs.map(song => song.uri));
+    showNotification('Similar playlist created successfully!');
+}
+
+async function fetchSimilarTracks(tracks) {
+    const similarTracks = [];
+    for (const track of tracks) {
+        const similarTrackData = await fetchData(`https://api.spotify.com/v1/recommendations?seed_tracks=${track.id}&limit=10`);
+        similarTracks.push(...similarTrackData.tracks.filter(similarTrack => !tracks.some(t => t.id === similarTrack.id)));
+    }
+    return similarTracks.slice(0, 50);
+}
+
+async function createSpotifyPlaylist(name, description, uris) {
+    const userResponse = await fetchData('https://api.spotify.com/v1/me');
+    const userId = userResponse.id;
+
+    const createPlaylistResponse = await fetch(`https://api.spotify.com/v1/users/${userId}/playlists`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            name: name,
+            description: description,
+            public: false
+        })
+    });
+    const createPlaylistData = await createPlaylistResponse.json();
+    const playlistId = createPlaylistData.id;
+
+    await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            uris: uris
+        })
+    });
+}
+
 async function fetchData(url, retries = 3) {
     const response = await fetch(url, {
-        headers: {
-            'Authorization': `Bearer ${accessToken}`
-        }
+        headers: { 'Authorization': `Bearer ${accessToken}` }
     });
 
     if (response.status === 429) {
         const retryAfter = response.headers.get('Retry-After');
         const delay = retryAfter ? parseInt(retryAfter) * 1000 : 3000;
+        showNotification('Spotify API is getting rate limited. Please wait.');
         console.log(`Rate limited. Retrying in ${delay / 1000} seconds...`);
         await new Promise(resolve => setTimeout(resolve, delay));
         return fetchData(url, retries - 1);
@@ -276,9 +321,7 @@ function extractPlaylistId(playlistURL) {
         const url = new URL(playlistURL);
         const paths = url.pathname.split('/');
         const playlistIndex = paths.indexOf('playlist');
-        if (playlistIndex !== -1 && paths[playlistIndex + 1]) {
-            return paths[playlistIndex + 1];
-        }
+        if (playlistIndex !== -1 && paths[playlistIndex + 1]) return paths[playlistIndex + 1];
         return null;
     } catch (error) {
         console.error('Error parsing URL:', error);
@@ -305,47 +348,48 @@ function displayUserProfile(profile) {
     profilePicture.classList.add('profile-picture');
     profilePicture.innerHTML = `<img src="${profile.images[0].url}" alt="Profile Picture">`;
     loginButton.replaceWith(profilePicture);
+    document.querySelector('.logout-button').classList.remove('hidden');
 }
 
 async function fetchUserProfile() {
-    const response = await fetch('https://api.spotify.com/v1/me', {
-        headers: {
-            'Authorization': `Bearer ${accessToken}`
-        }
-    });
-
-    if (!response.ok) {
-        console.error('Failed to fetch user profile:', response.statusText);
-        return;
-    }
-
+    const response = await fetch('https://api.spotify.com/v1/me', { headers: { 'Authorization': `Bearer ${accessToken}` } });
+    if (!response.ok) return console.error('Failed to fetch user profile:', response.statusText);
     const profile = await response.json();
     displayUserProfile(profile);
 }
 
 function checkVisibility() {
-    const storyPlaylistURL = document.getElementById('storyPlaylistURL').value;
-    const songPromptContainer = document.getElementById('songPromptContainer');
-    if (storyPlaylistURL && fetchedSongs.length > 0 && accessToken) {
-        songPromptContainer.classList.remove('hidden');
+    if (elements.storyPlaylistURL.value && fetchedSongs.length > 0 && accessToken) {
+        elements.songPromptContainer.classList.remove('hidden');
     } else {
-        songPromptContainer.classList.add('hidden');
+        elements.songPromptContainer.classList.add('hidden');
+    }
+}
+
+function checkSimilarVisibility() {
+    const similarSongsContainer = document.getElementById('similarSongsContainer');
+    if (similarSongsContainer) {
+        const similarPlaylistURL = elements.similarPlaylistURL.value;
+        if (similarPlaylistURL && similarSongs.length > 0 && accessToken) {
+            similarSongsContainer.classList.remove('hidden');
+        } else {
+            similarSongsContainer.classList.add('hidden');
+        }
     }
 }
 
 window.onload = function() {
-    const songPromptContainer = document.getElementById('songPromptContainer');
-    songPromptContainer.classList.add('hidden'); // Hide the container initially
+    elements.songPromptContainer.classList.add('hidden');
 
     if (window.location.hash) {
         accessToken = getAccessTokenFromUrl();
-        fetchUserProfile(); // Fetch and display user profile picture
+        fetchUserProfile();
 
         const activeTab = document.querySelector('.tab.active').textContent.trim();
-        if (activeTab === 'Story Generator') {
+        if (activeTab === 'Spotify Story') {
             const storyPlaylistURL = localStorage.getItem('storyPlaylistURL');
             if (storyPlaylistURL) {
-                document.getElementById('storyPlaylistURL').value = storyPlaylistURL;
+                elements.storyPlaylistURL.value = storyPlaylistURL;
                 fetchSongsFromURL(storyPlaylistURL).then(checkVisibility);
             } else {
                 checkVisibility();
@@ -353,10 +397,18 @@ window.onload = function() {
         } else if (activeTab === 'Playlist Genre Sorter') {
             const genrePlaylistURL = localStorage.getItem('genrePlaylistURL');
             if (genrePlaylistURL) {
-                document.getElementById('genrePlaylistURL').value = genrePlaylistURL;
+                elements.genrePlaylistURL.value = genrePlaylistURL;
                 createGenrePlaylists(genrePlaylistURL).then(checkVisibility);
             } else {
                 checkVisibility();
+            }
+        } else if (activeTab === 'Similar Playlist') {
+            const similarPlaylistURL = localStorage.getItem('similarPlaylistURL');
+            if (similarPlaylistURL) {
+                elements.similarPlaylistURL.value = similarPlaylistURL;
+                fetchSimilarSongsFromURL(similarPlaylistURL).then(checkSimilarVisibility);
+            } else {
+                checkSimilarVisibility();
             }
         }
     } else {
@@ -364,5 +416,6 @@ window.onload = function() {
     }
 };
 
-document.getElementById('storyPlaylistURL').addEventListener('input', checkVisibility);
-document.getElementById('genrePlaylistURL').addEventListener('input', checkVisibility);
+elements.storyPlaylistURL.addEventListener('input', checkVisibility);
+elements.genrePlaylistURL.addEventListener('input', checkVisibility);
+elements.similarPlaylistURL.addEventListener('input', checkSimilarVisibility);
