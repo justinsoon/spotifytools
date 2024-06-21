@@ -1,5 +1,5 @@
 const clientId = 'f6e537a709ed4244a7da8a33c1cb24ad'; // Your Spotify Client ID
-const redirectUri = 'http://localhost:8080'; // Ensure this matches the URI in Spotify Developer Dashboard
+const redirectUri = 'justinsoon.io/spotifytools'; // Ensure this matches the URI in Spotify Developer Dashboard
 const scopes = 'playlist-read-private playlist-read-collaborative playlist-modify-private playlist-modify-public';
 let accessToken = '';
 let fetchedSongs = [];
