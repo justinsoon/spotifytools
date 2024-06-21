@@ -72,7 +72,7 @@ async function fetchSongsFromURL(playlistURL) {
     accessToken = getAccessTokenFromUrl();
 
     if (!accessToken) {
-        alert('Please log in to your spotify account, so we can fetch your playlist data.');
+        alert('Please log in to your Spotify account, so we can fetch your playlist data.');
         return;
     }
 
@@ -103,6 +103,8 @@ async function fetchSongsFromURL(playlistURL) {
     const songTitles = fetchedSongs.map(song => song.title);
     displaySongTitles(songTitles);
     generateStoryPrompt(songTitles);
+    document.getElementById('songPromptContainer').classList.remove('hidden');
+    document.getElementById('playlistFormContainer').classList.remove('hidden');
 }
 
 async function fetchWithRetry(url, options = {}, retries = 5, backoff = 3000) {
@@ -290,7 +292,7 @@ async function createSpotifyPlaylist() {
     }
 
     if (!accessToken) {
-        alert('Please log in to your spotify account, so we can fetch your playlist data.');
+        alert('Please log in to your Spotify account, so we can fetch your playlist data.');
         return;
     }
 
