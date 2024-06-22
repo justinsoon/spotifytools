@@ -1,5 +1,5 @@
 const clientId = 'f6e537a709ed4244a7da8a33c1cb24ad';
-const redirectUri = 'justinsoon.io/spotifytools';
+const redirectUri = 'https://justinsoon.io/spotifytools/';
 const scopes = 'playlist-read-private playlist-read-collaborative playlist-modify-private playlist-modify-public user-library-read';
 let accessToken = '', fetchedSongs = [], similarSongs = [];
 
