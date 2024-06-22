@@ -22,7 +22,7 @@
             <div class="tab" onclick="showTab('genre')">Genre Sorter</div>
         </div>
         <div id="customDiscover" class="tab-content active">
-            <p>Create a playlist based on your liked songs, including only songs released within the last week.</p>
+            <p>Create a playlist based on your top artists and tracks, only new songs released within the last month.</p>
             <button class="create-playlist-custom-button" onclick="createCustomDiscoverPlaylist()">Create playlist</button>
         </div>
         <div id="similar" class="tab-content">
@@ -63,7 +63,7 @@
             <button id="createPlaylistButton" class="create-playlist-button hidden" onclick="openModal()">Create playlist</button>                      
         </div>
         <div id="genre" class="tab-content">
-            <p>[WIP] Enter a Spotify playlist URL to create multiple playlists based on the main genre of the songs.</p>
+            <p>Enter a Spotify playlist URL to create multiple playlists based on the main genre of the songs.</p>
             <form role="search">
                 <input class="search-input" id="genrePlaylistURL" maxlength="800" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Enter your playlist URL." data-testid="search-input">
             </form>
