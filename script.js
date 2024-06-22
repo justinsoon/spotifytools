@@ -1,5 +1,5 @@
 const clientId = 'f6e537a709ed4244a7da8a33c1cb24ad';
-const redirectUri = 'http://localhost:8080';
+const redirectUri = 'http://justinsoon.io/spotifytools';
 const scopes = 'playlist-read-private playlist-read-collaborative playlist-modify-private playlist-modify-public user-library-read user-top-read';
 let accessToken = '';
 const fetchedArtists = new Map();
