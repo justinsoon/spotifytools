@@ -1,10 +1,10 @@
 const clientId = 'f6e537a709ed4244a7da8a33c1cb24ad';
-const redirectUri = 'http://justinsoon.io/spotifytool';
+const redirectUri = 'http://justinsoon.io/spotifytools';
 const scopes = 'playlist-read-private playlist-read-collaborative playlist-modify-private playlist-modify-public user-library-read user-top-read';
 let accessToken = '';
 const fetchedArtists = new Map();
 const fetchedTracks = new Set();
-const fetchedGenres = new Set();
+const fetchedGenres = new Map();
 const fetchedSongs = [];
 
 const genreList = [
@@ -109,14 +109,14 @@ async function fetchWebApi(endpoint, method, body, retries = 3, retryDelay = 100
 async function createCustomDiscoverPlaylist() {
     showNotification('Creating Custom Discover Playlist...');
     accessToken = getAccessTokenFromUrl();
-    if (!accessToken) return showNotification('Please log in to your Spotify account.');
+    if (!accessToken) return showNotification('Please login to your Spotify account.');
 
     await fetchTopItems();
 
-    if (fetchedArtists.size === 0 || fetchedTracks.size === 0) return showNotification('No seed artists or tracks found.');
+    if (fetchedArtists.size === 0 || fetchedTracks.size === 0) return showNotification('No artists or tracks found.');
 
-    const seedArtists = Array.from(fetchedArtists.keys()).slice(0, 1).join(',');
-    const seedTracks = Array.from(fetchedTracks).slice(0, 1).join(',');
+    const seedArtists = Array.from(fetchedArtists.keys()).slice(0, 2).join(',');
+    const seedTracks = Array.from(fetchedTracks).slice(0, 3).join(',');
     const recommendations = await fetchRecommendations(seedArtists, seedTracks, 100, '');
 
     if (!recommendations || !Array.isArray(recommendations)) {
@@ -125,12 +125,12 @@ async function createCustomDiscoverPlaylist() {
     }
 
     const filteredRecommendations = recommendations.filter(song => !fetchedTracks.has(song.id));
-    const recentSongs = filteredRecommendations.filter(song => isSongRecent(song, 7));
+    const recentSongs = filteredRecommendations.filter(song => isSongRecent(song, 30));
 
     if (recentSongs.length === 0) return showNotification('No recent songs found in the recommendations.');
 
-    const playlistName = 'Custom Discover Playlist';
-    const description = 'A playlist with songs recommended based on your liked songs, released in the last week.';
+    const playlistName = 'Personalized Discover Monthly';
+    const description = 'A playlist with songs recommended based on your top tracks and artists, released recently. Made with https://justinsoon.io/spotifytools';
 
     await createSpotifyPlaylist(playlistName, description, recentSongs.map(song => song.uri));
     showNotification('Custom Discover playlist created successfully!');
@@ -162,19 +162,15 @@ async function createSimilarPlaylist() {
     if (!playlistId) return showNotification('Invalid playlist URL.');
 
     accessToken = getAccessTokenFromUrl();
-    if (!accessToken) return showNotification('Please log in to your Spotify account.');
+    if (!accessToken) return showNotification('Please login to your Spotify account.');
 
     await fetchTracksArtistsGenres(playlistId);
 
     if (fetchedArtists.size === 0 || fetchedTracks.size === 0) return showNotification('No seed artists or tracks found.');
 
-    const seedArtists = Array.from(fetchedArtists.keys()).slice(0, 1).join(',');
-    const seedTracks = Array.from(fetchedTracks).slice(0, 1).join(',');
-
-    const genreMap = getTopGenres(fetchedGenres, 1);
-    const seedGenres = genreMap.size > 0 ? Array.from(genreMap.keys()).join(',') : '';
-
-    const recommendations = await fetchRecommendations(seedArtists, seedTracks, 100, seedGenres);
+    const seedArtists = Array.from(fetchedArtists.keys()).slice(0, 2).join(',');
+    const seedTracks = Array.from(fetchedTracks).slice(0, 3).join(',');
+    const recommendations = await fetchRecommendations(seedArtists, seedTracks, 100, '');
 
     if (!recommendations || !Array.isArray(recommendations)) {
         console.error('Failed to fetch recommendations:', recommendations);
@@ -185,10 +181,10 @@ async function createSimilarPlaylist() {
 
     if (filteredRecommendations.length === 0) return showNotification('No similar songs found in the recommendations.');
 
-    const originalPlaylistData = await fetchWebApi(`v1/playlists/${playlistId}`, 'GET');
+    const originalPlaylistData = await fetchWebApi(`v1/playlists/${playlistId}?fields=name`, 'GET');
     const originalPlaylistName = originalPlaylistData.name;
-    const description = `A playlist with songs similar to those in the [original playlist](${similarPlaylistURL}).`;
-    const name = `Similar Playlist To ${originalPlaylistName}`;
+    const description = `A playlist with songs similar to those in the ${similarPlaylistURL}. Made with https://justinsoon.io/spotifytools`;
+    const name = `A Playlist Similar To ${originalPlaylistName}`;
 
     await createSpotifyPlaylist(name, description, filteredRecommendations.map(song => song.uri));
     showNotification('Similar playlist created successfully!');
@@ -321,7 +317,7 @@ async function fetchSongsFromURL(playlistURL) {
     if (!playlistId) return showNotification('Invalid playlist URL.');
 
     accessToken = getAccessTokenFromUrl();
-    if (!accessToken) return showNotification('Please log in to your Spotify account.');
+    if (!accessToken) return showNotification('Please login to your Spotify account.');
 
     fetchedSongs.length = 0;
     let url = `v1/playlists/${playlistId}/tracks?limit=50&fields=items(track(name,uri,id)),next`, data;
@@ -354,7 +350,7 @@ async function createGenrePlaylists(playlistURL) {
     if (!playlistId) return showNotification('Invalid playlist URL.');
 
     accessToken = getAccessTokenFromUrl();
-    if (!accessToken) return showNotification('Please log in to your Spotify account.');
+    if (!accessToken) return showNotification('Please log into your Spotify account.');
 
     let genreSongs = [], url = `v1/playlists/${playlistId}/tracks?limit=50&fields=items(track(id,uri,name,artists(name))),next`, data;
     do {
@@ -393,7 +389,7 @@ async function fetchTrackGenresAndCreatePlaylists(tracks) {
     }
 
     accessToken = getAccessTokenFromUrl();
-    if (!accessToken) return showNotification('Access token is missing. Please authenticate.');
+    if (!accessToken) return showNotification('Please log into your Spotify account.');
 
     const userResponse = await fetchWebApi('v1/me', 'GET');
     const userId = userResponse.id;
@@ -404,7 +400,7 @@ async function fetchTrackGenresAndCreatePlaylists(tracks) {
 
         const createPlaylistResponse = await fetchWebApi(`v1/users/${userId}/playlists`, 'POST', {
             name: genre,
-            description: 'Made with Spotify Tools',
+            description: 'Made with Spotify Tools - https://justinsoon.io/spotifytools',
             public: false
         });
         const playlistId = createPlaylistResponse.id;
