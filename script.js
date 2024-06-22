@@ -1,9 +1,10 @@
 const clientId = 'f6e537a709ed4244a7da8a33c1cb24ad';
-const redirectUri = 'http://justinsoon.io/spotifytools';
+const redirectUri = 'http://justinsoon.io/spotifytool';
 const scopes = 'playlist-read-private playlist-read-collaborative playlist-modify-private playlist-modify-public user-library-read user-top-read';
 let accessToken = '';
 const fetchedArtists = new Map();
 const fetchedTracks = new Set();
+const fetchedGenres = new Set();
 const fetchedSongs = [];
 
 const genreList = [
@@ -116,7 +117,7 @@ async function createCustomDiscoverPlaylist() {
 
     const seedArtists = Array.from(fetchedArtists.keys()).slice(0, 1).join(',');
     const seedTracks = Array.from(fetchedTracks).slice(0, 1).join(',');
-    const recommendations = await fetchRecommendations(seedArtists, seedTracks, 30);
+    const recommendations = await fetchRecommendations(seedArtists, seedTracks, 100, '');
 
     if (!recommendations || !Array.isArray(recommendations)) {
         console.error('Failed to fetch recommendations:', recommendations);
@@ -126,7 +127,7 @@ async function createCustomDiscoverPlaylist() {
     const filteredRecommendations = recommendations.filter(song => !fetchedTracks.has(song.id));
     const recentSongs = filteredRecommendations.filter(song => isSongRecent(song, 7));
 
-    if (recentSongs.length === 0) return showNotification('No new songs based on your listening history.');
+    if (recentSongs.length === 0) return showNotification('No recent songs found in the recommendations.');
 
     const playlistName = 'Custom Discover Playlist';
     const description = 'A playlist with songs recommended based on your liked songs, released in the last week.';
@@ -136,7 +137,7 @@ async function createCustomDiscoverPlaylist() {
 }
 
 async function fetchTopItems() {
-    const data = await fetchWebApi(`v1/me/top/tracks?limit=5`, 'GET');
+    const data = await fetchWebApi(`v1/me/top/tracks?limit=5&fields=items(id,artists(id))`, 'GET');
     if (!data || !data.items) return showNotification('Failed to fetch top tracks.');
     for (const item of data.items) {
         fetchedTracks.add(item.id);
@@ -145,7 +146,7 @@ async function fetchTopItems() {
         }
     }
 
-    const topArtists = await fetchWebApi('v1/me/top/artists?limit=5', 'GET');
+    const topArtists = await fetchWebApi('v1/me/top/artists?limit=5&fields=items(id)', 'GET');
     if (!topArtists || !topArtists.items) return showNotification('Failed to fetch top artists.');
     for (const artist of topArtists.items) {
         incrementMapCount(fetchedArtists, artist.id);
@@ -170,7 +171,10 @@ async function createSimilarPlaylist() {
     const seedArtists = Array.from(fetchedArtists.keys()).slice(0, 1).join(',');
     const seedTracks = Array.from(fetchedTracks).slice(0, 1).join(',');
 
-    const recommendations = await fetchRecommendations(seedArtists, seedTracks, 100);
+    const genreMap = getTopGenres(fetchedGenres, 1);
+    const seedGenres = genreMap.size > 0 ? Array.from(genreMap.keys()).join(',') : '';
+
+    const recommendations = await fetchRecommendations(seedArtists, seedTracks, 100, seedGenres);
 
     if (!recommendations || !Array.isArray(recommendations)) {
         console.error('Failed to fetch recommendations:', recommendations);
@@ -193,6 +197,7 @@ async function createSimilarPlaylist() {
 async function fetchTracksArtistsGenres(playlistId) {
     fetchedTracks.clear();
     fetchedArtists.clear();
+    fetchedGenres.clear();
 
     let url = `v1/playlists/${playlistId}/tracks?limit=50&fields=items(track(id,artists(id))),next`, data;
     do {
@@ -291,11 +296,10 @@ function incrementMapCount(map, key) {
     map.set(key, (map.get(key) || 0) + 1);
 }
 
-function getTopValues(map, limit) {
-    return Array.from(map.entries())
+function getTopGenres(map, limit) {
+    return new Map(Array.from(map.entries())
         .sort((a, b) => b[1] - a[1])
-        .slice(0, limit)
-        .map(entry => entry[0]);
+        .slice(0, limit));
 }
 
 async function fetchStorySongs() {
