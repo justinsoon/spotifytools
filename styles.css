@@ -76,7 +76,7 @@ body {
     border-top: 10px solid transparent;
     border-bottom: 10px solid transparent;
     position: absolute; /* Position absolute to move it within the button */
-    right: 7px; /* Adjust as needed to move it to the right */
+    right: 8px; /* Adjust as needed to move it to the right */
     top: 50%; /* Center vertically */
     transform: translateY(-50%); /* Center vertically */
 }
