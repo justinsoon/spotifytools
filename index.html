@@ -5,20 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spotify Tools</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
 </head>
 <body>
     <div class="container">
         <div class="auth-buttons">
             <button class="login-button" onclick="authenticate()">Log in</button>
             <button class="logout-button hidden" onclick="logout()">Log out</button>
+            <div class="profile-picture hidden"></div>
         </div>
         <h1>Spotify Tools</h1>
         <div class="tabs">
-            <div class="tab active" onclick="showTab('similar')">Similar Playlist</div>
+            <div class="tab active" onclick="showTab('customDiscover')">Custom Discover</div>
+            <div class="tab" onclick="showTab('similar')">Similar Playlist</div>
             <div class="tab" onclick="showTab('story')">Spotify Story</div>
-            <div class="tab" onclick="showTab('genre')">Playlist Genre Sorter</div>
+            <div class="tab" onclick="showTab('genre')">Genre Sorter</div>
         </div>
-        <div id="similar" class="tab-content active">
+        <div id="customDiscover" class="tab-content active">
+            <p>Create a playlist based on your liked songs, including only songs released within the last week.</p>
+            <button class="create-playlist-custom-button" onclick="createCustomDiscoverPlaylist()">Create Custom Discover Playlist</button>
+        </div>
+        <div id="similar" class="tab-content">
             <p>Enter a Spotify playlist URL to create a playlist of songs similar to those in the provided playlist.</p>
             <form role="search">
                 <input class="search-input" id="similarPlaylistURL" maxlength="800" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Enter your playlist URL." data-testid="search-input">
@@ -30,9 +37,11 @@
             <form role="search">
                 <input class="search-input" id="storyPlaylistURL" maxlength="800" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Enter your playlist URL." data-testid="search-input">
             </form>
-            <button class="fetch-button" onclick="fetchStorySongs()"></button>
-            <div id="songPromptContainer" class="flex-container hidden">
-                <div class="flex-item section">
+            <button class="fetch-button" onclick="fetchStorySongs()">
+                <div class="play-symbol"></div>
+            </button>
+            <div id="songPromptContainer" class="flex-container">
+                <div class="flex-item section hidden">
                     <div class="header-with-button centered">
                         <h2>Song Titles</h2>
                         <button class="copy-button" onclick="copyToClipboard('songList')">Copy 📋</button>
@@ -41,7 +50,7 @@
                         <textarea id="songList" readonly></textarea>
                     </div>
                 </div>
-                <div class="flex-item section">
+                <div class="flex-item section hidden">
                     <div class="header-with-button centered">
                         <h2>AI Prompt</h2>
                         <button class="copy-button" onclick="copyToClipboard('storyOutput')">Copy 📋</button>
@@ -50,19 +59,20 @@
                         <textarea id="storyOutput" readonly></textarea>
                     </div>
                 </div>
-                <button class="create-playlist-button" onclick="openModal()">Create playlist</button>
             </div>
+            <button id="createPlaylistButton" class="create-playlist-button hidden" onclick="openModal()">Create playlist</button>                      
         </div>
         <div id="genre" class="tab-content">
             <p>[WIP] Enter a Spotify playlist URL to create multiple playlists based on the main genre of the songs.</p>
             <form role="search">
                 <input class="search-input" id="genrePlaylistURL" maxlength="800" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Enter your playlist URL." data-testid="search-input">
             </form>
-            <button class="fetch-button" onclick="fetchAndDisplayGenres()"></button>
+            <button class="fetch-button" onclick="fetchAndDisplayGenres()">
+                <div class="play-symbol"></div>
+            </button>
             <div id="genreResults"></div>
         </div>
     </div>
-
     <div id="editPlaylistDetailsModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -77,9 +87,7 @@
             </div>
         </div>
     </div>
-
     <div id="notification" class="notification"></div>
-
     <script src="script.js"></script>
 </body>
 </html>

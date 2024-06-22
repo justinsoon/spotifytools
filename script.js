@@ -1,6 +1,6 @@
 const clientId = 'f6e537a709ed4244a7da8a33c1cb24ad';
-const redirectUri = 'https://justinsoon.io/spotifytools/';
-const scopes = 'playlist-read-private playlist-read-collaborative playlist-modify-private playlist-modify-public';
+const redirectUri = 'justinsoon.io/spotifytools';
+const scopes = 'playlist-read-private playlist-read-collaborative playlist-modify-private playlist-modify-public user-library-read';
 let accessToken = '', fetchedSongs = [], similarSongs = [];
 
 const elements = {
@@ -26,8 +26,9 @@ function logout() {
     elements.storyPlaylistURL.value = '';
     elements.genrePlaylistURL.value = '';
     elements.similarPlaylistURL.value = '';
-    document.querySelector('.profile-picture').replaceWith(createLoginButton());
+    document.querySelector('.profile-picture').classList.add('hidden');
     document.querySelector('.logout-button').classList.add('hidden');
+    document.querySelector('.login-button').classList.remove('hidden');
     showNotification('Logged out successfully.');
 }
 
@@ -86,9 +87,15 @@ async function savePlaylistDetails() {
 
 function fetchStorySongs() {
     const storyPlaylistURL = elements.storyPlaylistURL.value;
-    if (!storyPlaylistURL) return showNotification('Please enter a valid Spotify playlist URL.');
+    if (!storyPlaylistURL) {
+        showNotification('Please enter a valid Spotify playlist URL.');
+        return;
+    }
     localStorage.setItem('storyPlaylistURL', storyPlaylistURL);
-    fetchSongsFromURL(storyPlaylistURL);
+    fetchSongsFromURL(storyPlaylistURL).then(() => {
+        document.querySelectorAll('#songPromptContainer .flex-item.section').forEach(item => item.classList.remove('hidden'));
+        document.getElementById('createPlaylistButton').classList.remove('hidden');
+    });
 }
 
 async function fetchSongsFromURL(playlistURL) {
@@ -113,7 +120,6 @@ async function fetchSongsFromURL(playlistURL) {
 
     elements.songList.value = fetchedSongs.map(song => song.title).join('\n');
     elements.storyOutput.value = `Make a story or subliminal message by only using these song titles. Re-organize, but do not remove any of the songs, to make the story captivating and fluent. Give the entire re-ordered outputted formatted songs titles separated by '|'. Give me a title and a 300 character limit description of the story. Make the song titles written in the description all capitalized. Make sure the description in its entirety is 300 characters, including the capitalized song title that might overflow the 300 character limit.\n\n ${fetchedSongs.map(song => song.title).join('|')}`
-    checkVisibility();
 }
 
 function fetchAndDisplayGenres() {
@@ -343,12 +349,11 @@ function copyToClipboard(elementId) {
 }
 
 function displayUserProfile(profile) {
-    const loginButton = document.querySelector('.login-button');
-    const profilePicture = document.createElement('div');
-    profilePicture.classList.add('profile-picture');
+    const profilePicture = document.querySelector('.profile-picture');
     profilePicture.innerHTML = `<img src="${profile.images[0].url}" alt="Profile Picture">`;
-    loginButton.replaceWith(profilePicture);
+    profilePicture.classList.remove('hidden');
     document.querySelector('.logout-button').classList.remove('hidden');
+    document.querySelector('.login-button').classList.add('hidden');
 }
 
 async function fetchUserProfile() {
@@ -394,7 +399,7 @@ window.onload = function() {
             } else {
                 checkVisibility();
             }
-        } else if (activeTab === 'Playlist Genre Sorter') {
+        } else if (activeTab === 'Genre Sorter') {
             const genrePlaylistURL = localStorage.getItem('genrePlaylistURL');
             if (genrePlaylistURL) {
                 elements.genrePlaylistURL.value = genrePlaylistURL;
@@ -419,3 +424,57 @@ window.onload = function() {
 elements.storyPlaylistURL.addEventListener('input', checkVisibility);
 elements.genrePlaylistURL.addEventListener('input', checkVisibility);
 elements.similarPlaylistURL.addEventListener('input', checkSimilarVisibility);
+
+async function createCustomDiscoverPlaylist() {
+    accessToken = getAccessTokenFromUrl();
+    if (!accessToken) return showNotification('Please log in to your Spotify account.');
+
+    const likedSongs = await fetchLikedSongs();
+    const seedTracks = likedSongs.slice(0, 5).map(song => song.id); // Use up to 5 seed tracks
+    const recommendations = await fetchRecommendations(seedTracks);
+    const recentSongs = recommendations.filter(song => isSongRecent(song, 7));
+
+    if (recentSongs.length === 0) return showNotification('No recent songs found in the recommendations.');
+
+    const playlistName = 'Custom Discover Playlist';
+    const description = 'A playlist with songs recommended based on your liked songs, released in the last week.';
+
+    await createSpotifyPlaylist(playlistName, description, recentSongs.map(song => song.uri));
+    showNotification('Custom Discover playlist created successfully!');
+}
+
+async function fetchLikedSongs() {
+    let url = 'https://api.spotify.com/v1/me/tracks?limit=50', data, likedSongs = [];
+    do {
+        data = await fetchData(url);
+        if (!data.items) return showNotification('Failed to fetch liked songs.');
+        likedSongs.push(...data.items.map(item => ({
+            title: item.track.name,
+            uri: item.track.uri,
+            id: item.track.id,
+            releaseDate: item.track.album.release_date
+        })));
+        url = data.next;
+    } while (data.next);
+    return likedSongs;
+}
+
+async function fetchRecommendations(seedTracks) {
+    const url = `https://api.spotify.com/v1/recommendations?limit=50&seed_tracks=${seedTracks.join(',')}`;
+    const data = await fetchData(url);
+    if (!data.tracks) return showNotification('Failed to fetch recommendations.');
+    return data.tracks.map(track => ({
+        title: track.name,
+        uri: track.uri,
+        id: track.id,
+        releaseDate: track.album.release_date
+    }));
+}
+
+function isSongRecent(song, days) {
+    const today = new Date();
+    const releaseDate = new Date(song.releaseDate);
+    const timeDifference = today - releaseDate;
+    const dayDifference = timeDifference / (1000 * 3600 * 24);
+    return dayDifference <= days;
+}
