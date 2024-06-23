@@ -365,7 +365,7 @@ async function fetchSongsFromURL(playlistURL) {
 
 
 async function fetchAndDisplayGenres() {
-    showNotification('Starting Genre Sorter...');
+    showNotification('Starting Genre Sorter... Please Wait!');
     const genrePlaylistURL = elements.genrePlaylistURL.value;
     if (!genrePlaylistURL) return showNotification('Please enter a valid Spotify playlist URL.');
     localStorage.setItem('genrePlaylistURL', genrePlaylistURL);
